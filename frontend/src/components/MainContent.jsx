@@ -2,6 +2,7 @@ import React from 'react';
 import { Settings } from 'lucide-react';
 import MessageArea from './MessageArea';
 import FinalDrafts from './FinalDrafts';
+import ClauseTemplates from './templ'; // ✅ import this!
 
 const MainContent = ({ activeView, messages, drafts, onCopyMessage, onMoveToDrafts, onDeleteDraft }) => {
   if (activeView === 'drafts') {
@@ -18,7 +19,11 @@ const MainContent = ({ activeView, messages, drafts, onCopyMessage, onMoveToDraf
     );
   }
 
-  // Placeholder for other views
+  if (activeView === 'templates') {
+    return <ClauseTemplates />; // ✅ Render the Templates component
+  }
+
+  // Placeholder for other views (e.g., scheduler)
   return (
     <div className="flex-1 overflow-y-auto min-h-0">
       <div className="max-w-4xl mx-auto px-4 py-6">
