@@ -1,137 +1,52 @@
-import React, { useState } from 'react';
-import { Image, Bot, Copy, Trash2, Pencil, Save, X } from 'lucide-react';
+import React from 'react';
+import { FileText, Calendar } from 'lucide-react';
 
-const FinalDrafts = ({ drafts, onDeleteDraft, onUpdateDraft }) => {
-  const [editingId, setEditingId] = useState(null);
-  const [editedContent, setEditedContent] = useState('');
-
-  const handleEditClick = (draft) => {
-    setEditingId(draft.id);
-    setEditedContent(draft.content);
-  };
-
-  const handleCancel = () => {
-    setEditingId(null);
-    setEditedContent('');
-  };
-
-  const handleSave = () => {
-    if (editedContent.trim() !== '') {
-      onUpdateDraft(editingId, editedContent);
-    }
-    setEditingId(null);
-    setEditedContent('');
-  };
-
-  if (drafts.length === 0) {
-    return (
-      <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Image size={24} className="text-white" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Final Drafts Yet</h3>
-            <p className="text-gray-500 max-w-md mx-auto">
-              Messages you move to final drafts will appear here. Use the "Move to Drafts" button on assistant messages to save them.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex-1 overflow-y-auto min-h-0">
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Final Drafts</h2>
-          <p className="text-gray-600">Your saved assistant responses ({drafts.length} items)</p>
-        </div>
-
-        <div className="space-y-4">
-          {drafts.map((draft) => (
-            <div key={draft.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                      <Bot size={14} className="text-white" />
-                    </div>
-                    <span className="text-sm text-gray-500">
-                      Added {draft.timestamp.toLocaleDateString()} at{' '}
-                      {draft.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-
-                  {editingId === draft.id ? (
-                    <textarea
-                      className="w-full p-2 border border-gray-300 rounded-lg text-sm text-gray-800"
-                      value={editedContent}
-                      onChange={(e) => setEditedContent(e.target.value)}
-                      rows={4}
-                    />
-                  ) : (
-                    <p className="text-sm leading-relaxed text-gray-900 whitespace-pre-wrap">
-                      {draft.content}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex flex-col items-end gap-2">
-                  <button
-                    onClick={() => onDeleteDraft(draft.id)}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                    title="Delete draft"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                  {editingId !== draft.id ? (
-                    <button
-                      onClick={() => handleEditClick(draft)}
-                      className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
-                      title="Edit draft"
-                    >
-                      <Pencil size={16} />
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={handleSave}
-                        className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-all"
-                        title="Save"
-                      >
-                        <Save size={16} />
-                      </button>
-                      <button
-                        onClick={handleCancel}
-                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
-                        title="Cancel"
-                      >
-                        <X size={16} />
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {editingId !== draft.id && (
-                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-100">
-                  <button
-                    onClick={() => navigator.clipboard.writeText(draft.content)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 hover:text-gray-700 rounded-md transition-all"
-                  >
-                    <Copy size={12} />
-                    Copy Draft
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default FinalDrafts;
+export default function FinalDrafts({ drafts, handleDeleteDraft, handleOpenScheduleModal }) {
+  return (
+    <div className="flex-1 p-8 overflow-y-auto bg-white">
+      <h2 className="text-3xl font-bold mb-6 text-gray-900">Final Drafts</h2>
+      {drafts.length === 0 ? (
+        <div className="text-center py-12">
+          <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-500 text-lg">No drafts yet</p>
+          <p className="text-gray-400 text-sm">Messages you move to drafts will appear here</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {drafts.map((draft) => (
+            <div key={draft.id} className="bg-gray-100 rounded-lg p-6 border border-gray-200">
+              <div className="flex justify-between items-start mb-4">
+                <span className="text-sm text-gray-500">
+                  Added {draft.timestamp.toLocaleDateString()} at {draft.timestamp.toLocaleTimeString()}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleOpenScheduleModal(draft)}
+                    className="text-emerald-500 hover:text-emerald-600 text-sm transition-colors flex items-center gap-1"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    Schedule
+                  </button>
+                  <button
+                    onClick={() => handleDeleteDraft(draft.id)}
+                    className="text-red-500 hover:text-red-600 text-sm transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+              {draft.image && (
+                <img 
+                  src={URL.createObjectURL(draft.image)} 
+                  alt="Draft content" 
+                  className="max-w-full h-auto rounded-lg mb-4" 
+                />
+              )}
+              <div className="text-gray-900 whitespace-pre-wrap">{draft.content}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

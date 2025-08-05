@@ -1,23 +1,25 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-
+import CloutCraftApp from './tp';
 import LandingPage from './components/land'; // Adjust path if needed
 import SignUp from './components/sign';
 import AuthForm from './components/login';
-import ClauseTemplates from './components/templ'; // Make sure this exists
+import './App.css';
 
 function App() {
   return (
     <Router>
       {/* Optional Header */}
-    
 
       {/* Routes */}
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/sign" element={<SignUp />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/sign" element={<SignUp />} />
         <Route path="/login" element={<AuthForm />} />
-        <Route path="/templates" element={<ClauseTemplates />} />
+        <Route path="/CloutCraft" element={<CloutCraftApp/>} />
+
       </Routes>
     </Router>
   );

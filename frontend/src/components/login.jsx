@@ -1,21 +1,19 @@
 import { useState, useEffect } from 'react';
 import {
-  getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendEmailVerification,
   sendPasswordResetEmail,
   onAuthStateChanged
 } from 'firebase/auth';
-import { auth } from './firebase';
-import { User } from 'lucide-react';
+import { auth } from './firebase'; // make sure this exports 'auth' from Firebase
+import { useNavigate } from 'react-router-dom';
 
 const AuthForm = () => {
-  const [form, setForm] = useState({
-    email: '',
-    password: ''
-  });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [mode, setMode] = useState('login'); // login or signup
+  const navigate = useNavigate();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -31,128 +29,133 @@ const AuthForm = () => {
     setForm((prev) => ({ ...prev, [id]: value }));
   };
 
-  const displayErrorMessage = (msg) => {
+  const displayError = (msg) => {
     setError(msg);
     setTimeout(() => setError(''), 5000);
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const { email, password } = form;
-    signInWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
-        const user = userCredential.user;
-        if (user.emailVerified) {
-          window.location.replace('/ChatInterface');
-        } else {
-          displayErrorMessage('Please verify your email address first.');
-        }
-      })
-      .catch(() => displayErrorMessage('Username or password incorrect'));
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, form.email, form.password);
+      if (userCredential.user.emailVerified) {
+        navigate('/CloutCraft');
+      } else {
+        displayError('Please verify your email address first.');
+      }
+    } catch {
+      displayError('Username or password incorrect.');
+    }
   };
 
-  const handleForgotPassword = () => {
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, form.email, form.password);
+      await sendEmailVerification(userCredential.user);
+      alert('Account created. Please check your email for verification.');
+      navigate('/CloutCraft');
+    } catch (err) {
+      displayError(err.message);
+    }
+  };
+
+  const handleForgotPassword = async () => {
     if (!form.email) {
-      displayErrorMessage('Please enter your email to reset password.');
+      displayError('Please enter your email to reset password.');
       return;
     }
-    sendPasswordResetEmail(auth, form.email)
-      .then(() => alert('Reset link sent to your email id'))
-      .catch((err) => displayErrorMessage(err.message));
+    try {
+      await sendPasswordResetEmail(auth, form.email);
+      alert('Reset link sent to your email id.');
+    } catch (err) {
+      displayError(err.message);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-lime-50 flex overflow-y-auto">
-      {/* Decorative Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-green-200 to-lime-300 rounded-full opacity-20 animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-emerald-200 to-green-300 rounded-full opacity-20 animate-pulse"></div>
-        <div className="absolute top-1/2 left-1/4 w-32 h-32 bg-gradient-to-br from-lime-200 to-green-300 rounded-full opacity-15 animate-bounce"></div>
-        <div className="absolute bottom-1/4 right-1/3 w-24 h-24 bg-gradient-to-br from-emerald-200 to-teal-300 rounded-full opacity-10 animate-pulse"></div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-lime-50 relative overflow-hidden">
+      {/* Background bubbles */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="absolute -top-32 -right-32 w-80 h-80 bg-green-200 rounded-full opacity-20 animate-pulse" />
+        <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-emerald-200 rounded-full opacity-20 animate-pulse" />
+        <div className="absolute top-1/3 left-1/4 w-24 h-24 bg-lime-200 rounded-full opacity-10 animate-bounce" />
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto relative z-10">
-        <div className="bg-white/95 backdrop-blur-xl shadow-2xl rounded-3xl w-full max-w-lg p-10 my-8 border border-green-100/50">
-          {/* Header */}
-          <div className="text-center mb-10">
-            <div className="relative mb-6">
-              <div className="w-20 h-20 bg-gradient-to-r from-green-600 to-lime-600 rounded-full flex items-center justify-center mx-auto shadow-lg">
-                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-lime-400 to-green-400 rounded-full shadow-sm"></div>
-            </div>
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-green-700 to-lime-700 bg-clip-text text-transparent mb-3">
-              Welcome Back
-            </h2>
-            <p className="text-gray-600 text-lg">Sign in to your account</p>
+      <div className="z-10 bg-white/90 backdrop-blur-md p-10 rounded-3xl shadow-2xl w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-green-600 rounded-full mx-auto flex items-center justify-center shadow-lg mb-4">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
           </div>
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-green-700 to-lime-700 bg-clip-text text-transparent">
+            {mode === 'login' ? 'Welcome Back' : 'Create Account'}
+          </h2>
+          <p className="text-gray-500 text-sm">{mode === 'login' ? 'Sign in to continue' : 'Sign up to get started'}</p>
+        </div>
 
-          {error && (
-            <div className="bg-red-50/90 backdrop-blur border border-red-200/60 text-red-700 px-4 py-3 rounded-xl mb-6 shadow-sm">
-              {error}
-            </div>
-          )}
+        {error && (
+          <div className="bg-red-100 text-red-700 p-3 rounded-xl text-sm mb-4">
+            {error}
+          </div>
+        )}
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <InputField 
-              id="email" 
-              label="Email Address" 
-              value={form.email} 
-              onChange={handleChange} 
-              type="email"
-              placeholder="Enter your email address"
-            />
-            
-            <InputField 
-              id="password" 
-              label="Password" 
-              value={form.password} 
-              onChange={handleChange} 
-              type="password"
-              placeholder="Enter your password"
-            />
+        <form onSubmit={mode === 'login' ? handleLogin : handleSignup} className="space-y-5">
+          <InputField
+            id="email"
+            label="Email"
+            value={form.email}
+            onChange={handleChange}
+            type="email"
+            placeholder="you@example.com"
+          />
+          <InputField
+            id="password"
+            label="Password"
+            value={form.password}
+            onChange={handleChange}
+            type="password"
+            placeholder="••••••••"
+          />
 
+          {mode === 'login' && (
             <div className="text-right">
-              <button 
-                type="button" 
-                className="text-transparent bg-gradient-to-r from-green-700 to-lime-700 bg-clip-text hover:from-green-800 hover:to-lime-800 font-semibold transition-all duration-200 text-sm"
+              <button
+                type="button"
                 onClick={handleForgotPassword}
+                className="text-green-600 text-sm hover:underline"
               >
                 Forgot Password?
               </button>
             </div>
+          )}
 
-            <button
-              type="submit"
-              className="w-full bg-gradient-to-r from-green-600 via-lime-600 to-emerald-600 text-white py-4 px-6 rounded-xl font-semibold hover:from-green-700 hover:via-lime-700 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 hover:shadow-xl shadow-lg"
-            >
-              Sign In 🌿
-            </button>
+          <button
+            type="submit"
+            className="w-full bg-gradient-to-r from-green-600 to-lime-600 text-white py-3 rounded-xl font-semibold shadow hover:from-green-700 hover:to-lime-700 transition"
+          >
+            {mode === 'login' ? 'Sign In' : 'Sign Up'}
+          </button>
+        </form>
 
-            <div className="text-center pt-6">
-              <p className="text-gray-600">
-                Don't have an account?{'sign '}
-                <a href="/sign" className="text-transparent bg-gradient-to-r from-green-700 to-lime-700 bg-clip-text hover:from-green-800 hover:to-lime-800 font-semibold transition-all duration-200">
-                  Sign Up →
-                </a>
-              </p>
-            </div>
-          </form>
+        <div className="text-center mt-6 text-sm text-gray-600">
+          {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+          <button
+            onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+            className="text-green-700 font-semibold hover:underline"
+          >
+            {mode === 'login' ? 'Sign Up' : 'Sign In'}
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
-// Enhanced input component with olive green theme
 const InputField = ({ label, id, value, onChange, type = 'text', placeholder }) => (
-  <div className="group">
-    <label htmlFor={id} className="block text-sm font-semibold text-gray-700 mb-2 group-focus-within:text-green-700 transition-colors duration-200">
-      {label}
-    </label>
+  <div>
+    <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
     <input
       id={id}
       type={type}
@@ -160,7 +163,7 @@ const InputField = ({ label, id, value, onChange, type = 'text', placeholder }) 
       onChange={onChange}
       placeholder={placeholder}
       required
-      className="w-full px-4 py-3 border border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500 transition-all duration-200 bg-green-50/30 hover:bg-white hover:border-green-300"
+      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400"
     />
   </div>
 );
