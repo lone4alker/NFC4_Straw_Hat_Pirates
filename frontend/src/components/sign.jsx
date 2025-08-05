@@ -81,40 +81,41 @@ const SignUp = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-teal-100 flex overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-lime-50 flex overflow-y-auto">
       {/* Decorative Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-pink-300 to-purple-400 rounded-full opacity-20 animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-cyan-300 to-blue-400 rounded-full opacity-20 animate-pulse"></div>
-        <div className="absolute top-1/2 left-1/4 w-32 h-32 bg-gradient-to-br from-yellow-300 to-orange-400 rounded-full opacity-10 animate-bounce"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-green-200 to-lime-300 rounded-full opacity-20 animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-emerald-200 to-green-300 rounded-full opacity-20 animate-pulse"></div>
+        <div className="absolute top-1/2 left-1/4 w-32 h-32 bg-gradient-to-br from-lime-200 to-green-300 rounded-full opacity-15 animate-bounce"></div>
+        <div className="absolute bottom-1/4 right-1/3 w-24 h-24 bg-gradient-to-br from-emerald-200 to-teal-300 rounded-full opacity-10 animate-pulse"></div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto relative z-10">
-        <div className="bg-white/80 backdrop-blur-xl shadow-2xl rounded-3xl w-full max-w-lg p-10 my-8 border border-white/20">
+        <div className="bg-white/95 backdrop-blur-xl shadow-2xl rounded-3xl w-full max-w-lg p-10 my-8 border border-green-100/50">
           {/* Header */}
           <div className="text-center mb-10">
             <div className="relative mb-6">
-              <div className="w-20 h-20 bg-gradient-to-r from-violet-500 to-purple-600 rounded-full flex items-center justify-center mx-auto shadow-lg">
+              <div className="w-20 h-20 bg-gradient-to-r from-green-600 to-lime-600 rounded-full flex items-center justify-center mx-auto shadow-lg">
                 <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
-              <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full"></div>
+              <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-lime-400 to-green-400 rounded-full shadow-sm"></div>
             </div>
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent mb-3">
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-green-700 to-lime-700 bg-clip-text text-transparent mb-3">
               Join Our Community
             </h2>
             <p className="text-gray-600 text-lg">Create your account and get started</p>
           </div>
 
           {error && (
-            <div className="bg-red-50/80 backdrop-blur border border-red-200/50 text-red-700 px-4 py-3 rounded-xl mb-6 shadow-sm">
+            <div className="bg-red-50/90 backdrop-blur border border-red-200/60 text-red-700 px-4 py-3 rounded-xl mb-6 shadow-sm">
               {error}
             </div>
           )}
 
-                      <form onSubmit={handleSubmit} className="space-y-5 max-h-96 overflow-y-auto pr-2">
+          <form onSubmit={handleSubmit} className="space-y-5 max-h-96 overflow-y-auto pr-2">
             <InputField 
               label="Full Name" 
               id="name" 
@@ -159,7 +160,7 @@ const SignUp = () => {
 
             {/* Social Media URLs */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent border-b border-gradient-to-r from-violet-200 to-purple-200 pb-2">
+              <h3 className="text-lg font-semibold bg-gradient-to-r from-green-700 to-lime-700 bg-clip-text text-transparent border-b border-green-200 pb-2">
                 Social Media Profiles (Optional)
               </h3>
               
@@ -193,15 +194,15 @@ const SignUp = () => {
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 text-white py-4 px-6 rounded-xl font-semibold hover:from-violet-700 hover:via-purple-700 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105 hover:shadow-xl shadow-lg"
+              className="w-full bg-gradient-to-r from-green-600 via-lime-600 to-emerald-600 text-white py-4 px-6 rounded-xl font-semibold hover:from-green-700 hover:via-lime-700 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 hover:shadow-xl shadow-lg"
             >
-              Create Account ✨
+              Create Account 🌿
             </button>
 
             <div className="text-center pt-6">
               <p className="text-gray-600">
                 Already have an account?{' '}
-                <a href="/login" className="text-transparent bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text hover:from-violet-700 hover:to-purple-700 font-semibold transition-all duration-200">
+                <a href="/login" className="text-transparent bg-gradient-to-r from-green-700 to-lime-700 bg-clip-text hover:from-green-800 hover:to-lime-800 font-semibold transition-all duration-200">
                   Sign In →
                 </a>
               </p>
@@ -213,10 +214,10 @@ const SignUp = () => {
   );
 };
 
-// Enhanced input component with modern styling
+// Enhanced input component with olive green theme
 const InputField = ({ label, id, value, onChange, type = 'text', placeholder, icon }) => (
   <div className="group">
-    <label className="block text-sm font-semibold text-gray-700 mb-2 group-focus-within:text-violet-600 transition-colors duration-200">
+    <label className="block text-sm font-semibold text-gray-700 mb-2 group-focus-within:text-green-700 transition-colors duration-200">
       {icon && <span className="mr-2 text-lg">{icon}</span>}
       {label}
     </label>
@@ -227,7 +228,7 @@ const InputField = ({ label, id, value, onChange, type = 'text', placeholder, ic
       onChange={onChange}
       placeholder={placeholder}
       required={!['redditUrl', 'youtubeUrl', 'xUrl'].includes(id)}
-      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-all duration-200 bg-gray-50/50 hover:bg-white hover:border-gray-300"
+      className="w-full px-4 py-3 border border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500 transition-all duration-200 bg-green-50/30 hover:bg-white hover:border-green-300"
     />
   </div>
 );
