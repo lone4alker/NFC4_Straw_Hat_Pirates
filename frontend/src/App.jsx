@@ -11,9 +11,6 @@ function App() {
 
   return (
     <Router>
-      {/* Optional Header */}
-      <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-
       {/* Routes */}
       <Routes>
         <Route path="/" element={<ChatInterface />} />
