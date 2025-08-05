@@ -6,6 +6,7 @@ import {
   Globe, Shield, Clock
 } from 'lucide-react';
 
+
 const LandingPage = () => {
   const [scrollY, setScrollY] = useState(0);
 
@@ -60,6 +61,9 @@ const LandingPage = () => {
                   CloutCraft
                 </span>
               </div>
+
+              {/* Navigation Links */}
+             
             </div>
           </div>
         </div>

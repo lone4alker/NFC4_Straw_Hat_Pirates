@@ -1,37 +1,22 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import requests
+from fetch_realtime import get_user_from_realtime_db
 
 app = FastAPI()
 
-# Allow CORS for local development (adjust as needed)
+# Enable CORS (optional if frontend)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or ["http://localhost:3000"]
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Input data model
-class Prompt(BaseModel):
-    sentence: str
-
-# Route to process sentence and get response from Ollama
-@app.post("/generate")
-def generate_response(prompt: Prompt):
-    ollama_url = "http://localhost:11434/api/generate"  # Default Ollama endpoint
-    data = {
-        "model": "llama3.2",  # Replace with your model name (e.g., 'llama3', 'mistral', etc.)
-        "prompt": prompt.sentence,
-        "stream": False     # Set to False to receive full response at once
-    }
-
+@app.get("/account/{email}")
+async def get_user(email: str):
     try:
-        response = requests.post(ollama_url, json=data)
-        response.raise_for_status()
-        result = response.json()
-        return {"response": result.get("response", "")}
-    except Exception as e:
-        return {"error": str(e)}
+        user_data = get_user_from_realtime_db(email)
+        return user_data
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
