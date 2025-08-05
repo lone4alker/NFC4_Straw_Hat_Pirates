@@ -1,23 +1,19 @@
 import { useState, useEffect } from 'react';
 import {
-  getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendEmailVerification,
   sendPasswordResetEmail,
   onAuthStateChanged
 } from 'firebase/auth';
-import { getDatabase, ref, set } from 'firebase/database';
-import { auth, database } from './firebase';
+import { auth } from './firebase'; // make sure this exports 'auth' from Firebase
+import { useNavigate } from 'react-router-dom';
 
 const AuthForm = () => {
-  const [form, setForm] = useState({
-    email: '',
-    password: '',
-    firstname: '',
-    lastname: ''
-  });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [mode, setMode] = useState('login'); // login or signup
+  const navigate = useNavigate();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -33,109 +29,141 @@ const AuthForm = () => {
     setForm((prev) => ({ ...prev, [id]: value }));
   };
 
-  const displayErrorMessage = (msg) => {
+  const displayError = (msg) => {
     setError(msg);
     setTimeout(() => setError(''), 5000);
   };
 
-  const saveEntryToFirebase = (userId, firstname, lastname, callback) => {
-    const db = getDatabase();
-    set(ref(db, 'users/' + userId), {
-      firstname,
-      lastname
-    })
-      .then(() => callback && callback())
-      .catch((error) => console.error('Error saving entry:', error));
-  };
-
-  const handleSignUp = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const { email, password, firstname, lastname } = form;
-    createUserWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
-        const user = userCredential.user;
-        sendEmailVerification(user)
-          .then(() => {
-            saveEntryToFirebase(user.uid, firstname, lastname, () => {
-              alert('Verification Email Sent');
-              window.location.replace('/login');
-            });
-          })
-          .catch((err) => displayErrorMessage(err.message));
-      })
-      .catch((err) => displayErrorMessage(err.message));
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, form.email, form.password);
+      if (userCredential.user.emailVerified) {
+        navigate('/CloutCraft');
+      } else {
+        displayError('Please verify your email address first.');
+      }
+    } catch {
+      displayError('Username or password incorrect.');
+    }
   };
 
-  const handleLogin = (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
-    const { email, password } = form;
-    signInWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
-        const user = userCredential.user;
-        if (user.emailVerified) {
-          window.location.replace('/dashboard');
-        } else {
-          displayErrorMessage('Please verify your email address first.');
-        }
-      })
-      .catch(() => displayErrorMessage('Username or password incorrect'));
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, form.email, form.password);
+      await sendEmailVerification(userCredential.user);
+      alert('Account created. Please check your email for verification.');
+      navigate('/CloutCraft');
+    } catch (err) {
+      displayError(err.message);
+    }
   };
 
-  const handleForgotPassword = () => {
+  const handleForgotPassword = async () => {
     if (!form.email) {
-      displayErrorMessage('Please enter your email to reset password.');
+      displayError('Please enter your email to reset password.');
       return;
     }
-    sendPasswordResetEmail(auth, form.email)
-      .then(() => alert('Reset link sent to your email id'))
-      .catch((err) => displayErrorMessage(err.message));
+    try {
+      await sendPasswordResetEmail(auth, form.email);
+      alert('Reset link sent to your email id.');
+    } catch (err) {
+      displayError(err.message);
+    }
   };
 
   return (
-    <div className="min-h-screen grid md:grid-cols-2 bg-cover bg-no-repeat" style={{ backgroundImage: "url('https://t4.ftcdn.net/jpg/03/49/77/45/360_F_349774531_GVBujUQPMDHdptTix4m13kQ62Qgy4jiA.jpg')" }}>
-      <div className="hidden md:flex items-center justify-center text-white ml-6">
-        <div>
-          <h1 className="text-5xl font-bold">Get Started!</h1>
-          <p className="text-2xl mt-2">Have a good day</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-lime-50 relative overflow-hidden">
+      {/* Background bubbles */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="absolute -top-32 -right-32 w-80 h-80 bg-green-200 rounded-full opacity-20 animate-pulse" />
+        <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-emerald-200 rounded-full opacity-20 animate-pulse" />
+        <div className="absolute top-1/3 left-1/4 w-24 h-24 bg-lime-200 rounded-full opacity-10 animate-bounce" />
       </div>
 
-      <div className="flex justify-center items-center px-4 py-10">
-        <div className="bg-white bg-opacity-90 shadow-xl rounded-xl w-full max-w-md p-8">
-          <h3 className="text-center text-2xl font-semibold mb-6">Create a new account / Login</h3>
+      <div className="z-10 bg-white/90 backdrop-blur-md p-10 rounded-3xl shadow-2xl w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-green-600 rounded-full mx-auto flex items-center justify-center shadow-lg mb-4">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-green-700 to-lime-700 bg-clip-text text-transparent">
+            {mode === 'login' ? 'Welcome Back' : 'Create Account'}
+          </h2>
+          <p className="text-gray-500 text-sm">{mode === 'login' ? 'Sign in to continue' : 'Sign up to get started'}</p>
+        </div>
 
-          {error && <p className="text-red-600 text-center mb-4">{error}</p>}
+        {error && (
+          <div className="bg-red-100 text-red-700 p-3 rounded-xl text-sm mb-4">
+            {error}
+          </div>
+        )}
 
-          <form className="space-y-4">
-            <InputField id="email" label="Email" value={form.email} onChange={handleChange} type="email" />
-            <InputField id="password" label="Password" value={form.password} onChange={handleChange} type="password" />
-            <InputField id="firstname" label="First Name" value={form.firstname} onChange={handleChange} />
-            <InputField id="lastname" label="Last Name" value={form.lastname} onChange={handleChange} />
+        <form onSubmit={mode === 'login' ? handleLogin : handleSignup} className="space-y-5">
+          <InputField
+            id="email"
+            label="Email"
+            value={form.email}
+            onChange={handleChange}
+            type="email"
+            placeholder="you@example.com"
+          />
+          <InputField
+            id="password"
+            label="Password"
+            value={form.password}
+            onChange={handleChange}
+            type="password"
+            placeholder="••••••••"
+          />
 
-            <div className="flex justify-between">
-              <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-md" onClick={handleSignUp}>Sign Up</button>
-              <button className="bg-green-600 text-white px-4 py-2 rounded-md" onClick={handleLogin}>Login</button>
+          {mode === 'login' && (
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                className="text-green-600 text-sm hover:underline"
+              >
+                Forgot Password?
+              </button>
             </div>
-            <div className="text-center mt-4">
-              <button type="button" className="text-blue-600 underline" onClick={handleForgotPassword}>Forgot Password?</button>
-            </div>
-          </form>
+          )}
+
+          <button
+            type="submit"
+            className="w-full bg-gradient-to-r from-green-600 to-lime-600 text-white py-3 rounded-xl font-semibold shadow hover:from-green-700 hover:to-lime-700 transition"
+          >
+            {mode === 'login' ? 'Sign In' : 'Sign Up'}
+          </button>
+        </form>
+
+        <div className="text-center mt-6 text-sm text-gray-600">
+          {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+          <button
+            onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+            className="text-green-700 font-semibold hover:underline"
+          >
+            {mode === 'login' ? 'Sign Up' : 'Sign In'}
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
-const InputField = ({ label, id, value, onChange, type = 'text' }) => (
+const InputField = ({ label, id, value, onChange, type = 'text', placeholder }) => (
   <div>
-    <label htmlFor={id} className="block mb-1 font-medium">{label}</label>
+    <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
     <input
       id={id}
       type={type}
       value={value}
       onChange={onChange}
+      placeholder={placeholder}
       required
-      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400"
     />
   </div>
 );
