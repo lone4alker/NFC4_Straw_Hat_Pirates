@@ -12,12 +12,9 @@ function App() {
 
   return (
     <Router>
-<<<<<<< HEAD
-=======
       {/* Optional Header */}
     
 
->>>>>>> 7fa6f9cd2a3f0168303ec56f05743184fbda3ff8
       {/* Routes */}
       <Routes>
         <Route path="/" element={<ChatInterface />} />
