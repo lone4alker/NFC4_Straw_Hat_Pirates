@@ -7,15 +7,13 @@ import {
   sendPasswordResetEmail,
   onAuthStateChanged
 } from 'firebase/auth';
-import { getDatabase, ref, set } from 'firebase/database';
-import { auth, database } from './firebase';
+import { auth } from './firebase';
+import { User } from 'lucide-react';
 
 const AuthForm = () => {
   const [form, setForm] = useState({
     email: '',
-    password: '',
-    firstname: '',
-    lastname: ''
+    password: ''
   });
   const [error, setError] = useState('');
 
@@ -38,28 +36,16 @@ const AuthForm = () => {
     setTimeout(() => setError(''), 5000);
   };
 
-  const saveEntryToFirebase = (userId, firstname, lastname, callback) => {
-    const db = getDatabase();
-    set(ref(db, 'users/' + userId), {
-      firstname,
-      lastname
-    })
-      .then(() => callback && callback())
-      .catch((error) => console.error('Error saving entry:', error));
-  };
-
   const handleSignUp = (e) => {
     e.preventDefault();
-    const { email, password, firstname, lastname } = form;
+    const { email, password } = form;
     createUserWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
         const user = userCredential.user;
         sendEmailVerification(user)
           .then(() => {
-            saveEntryToFirebase(user.uid, firstname, lastname, () => {
-              alert('Verification Email Sent');
-              window.location.replace('/login');
-            });
+            alert('Verification Email Sent');
+            window.location.replace('/login');
           })
           .catch((err) => displayErrorMessage(err.message));
       })
@@ -73,7 +59,7 @@ const AuthForm = () => {
       .then((userCredential) => {
         const user = userCredential.user;
         if (user.emailVerified) {
-          window.location.replace('/dashboard');
+          window.location.replace('/ChatInterface');
         } else {
           displayErrorMessage('Please verify your email address first.');
         }
@@ -92,35 +78,31 @@ const AuthForm = () => {
   };
 
   return (
-    <div className="min-h-screen grid md:grid-cols-2 bg-cover bg-no-repeat" style={{ backgroundImage: "url('https://t4.ftcdn.net/jpg/03/49/77/45/360_F_349774531_GVBujUQPMDHdptTix4m13kQ62Qgy4jiA.jpg')" }}>
-      <div className="hidden md:flex items-center justify-center text-white ml-6">
-        <div>
-          <h1 className="text-5xl font-bold">Get Started!</h1>
-          <p className="text-2xl mt-2">Have a good day</p>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-teal-100 flex items-center justify-center">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 relative overflow-hidden">
+        <div className="flex flex-col items-center mb-6">
+          <div className="bg-purple-600 rounded-full p-4 shadow-lg text-white mb-2">
+            <User className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-bold text-purple-700">Join Our Community</h2>
+          <p className="text-gray-600 text-sm text-center">Create your account and get started</p>
         </div>
-      </div>
 
-      <div className="flex justify-center items-center px-4 py-10">
-        <div className="bg-white bg-opacity-90 shadow-xl rounded-xl w-full max-w-md p-8">
-          <h3 className="text-center text-2xl font-semibold mb-6">Create a new account / Login</h3>
+        {error && <p className="text-red-600 text-center mb-4">{error}</p>}
 
-          {error && <p className="text-red-600 text-center mb-4">{error}</p>}
+        <form className="space-y-4">
+          <InputField id="email" label="Email Address" value={form.email} onChange={handleChange} type="email" />
+          <InputField id="password" label="Password" value={form.password} onChange={handleChange} type="password" />
 
-          <form className="space-y-4">
-            <InputField id="email" label="Email" value={form.email} onChange={handleChange} type="email" />
-            <InputField id="password" label="Password" value={form.password} onChange={handleChange} type="password" />
-            <InputField id="firstname" label="First Name" value={form.firstname} onChange={handleChange} />
-            <InputField id="lastname" label="Last Name" value={form.lastname} onChange={handleChange} />
+          <div className="flex justify-between">
+            <button type="submit" className="bg-purple-600 text-white px-4 py-2 rounded-md" onClick={handleSignUp}>Sign Up</button>
+            <button className="bg-green-600 text-white px-4 py-2 rounded-md" onClick={handleLogin}>Login</button>
+          </div>
 
-            <div className="flex justify-between">
-              <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-md" onClick={handleSignUp}>Sign Up</button>
-              <button className="bg-green-600 text-white px-4 py-2 rounded-md" onClick={handleLogin}>Login</button>
-            </div>
-            <div className="text-center mt-4">
-              <button type="button" className="text-blue-600 underline" onClick={handleForgotPassword}>Forgot Password?</button>
-            </div>
-          </form>
-        </div>
+          <div className="text-center mt-4">
+            <button type="button" className="text-purple-600 underline text-sm" onClick={handleForgotPassword}>Forgot Password?</button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -128,14 +110,14 @@ const AuthForm = () => {
 
 const InputField = ({ label, id, value, onChange, type = 'text' }) => (
   <div>
-    <label htmlFor={id} className="block mb-1 font-medium">{label}</label>
+    <label htmlFor={id} className="block mb-1 font-medium text-sm">{label}</label>
     <input
       id={id}
       type={type}
       value={value}
       onChange={onChange}
       required
-      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-400"
     />
   </div>
 );
