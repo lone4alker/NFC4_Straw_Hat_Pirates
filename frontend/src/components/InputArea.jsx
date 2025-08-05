@@ -41,7 +41,7 @@ const InputArea = ({ inputValue, setInputValue, handleSendMessage }) => {
           <div className="flex items-center gap-3">
             <span>{inputValue.length} / 4000</span>
             <span>•</span>
-            <span className="font-medium">GPT-4</span>
+            <span className="font-medium">Llama 3.2</span>
           </div>
         </div>
       </div>
