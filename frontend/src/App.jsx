@@ -9,6 +9,10 @@ import ClauseTemplates from './components/templ'; // Make sure this exists
 function App() {
   return (
     <Router>
+      {/* Optional Header */}
+    
+
+      {/* Routes */}
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/sign" element={<SignUp />} />
