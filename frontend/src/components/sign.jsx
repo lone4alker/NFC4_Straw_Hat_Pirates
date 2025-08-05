@@ -60,8 +60,11 @@ const SignUp = () => {
 
     await sendEmailVerification(user);
 
-    const db = getDatabase();
-    await set(ref(db, 'users/' + userId), {
+    console.log('Saving user to DB:', {
+      name, email, role, industry, platform, uid: userId,
+    });
+
+    await set(ref(database, 'users/' + userId), {
       name,
       email,
       role,
@@ -70,9 +73,11 @@ const SignUp = () => {
       uid: userId,
     });
 
+    console.log('User successfully saved!');
     alert('Verification email sent!');
     window.location.replace('/login.html');
   } catch (err) {
+    console.error(err);
     displayErrorMessage(err.message);
   }
 };
