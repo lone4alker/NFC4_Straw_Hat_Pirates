@@ -20,7 +20,7 @@ app.add_middleware(
 # Pydantic model for the Ollama request body
 class OllamaRequest(BaseModel):
     prompt: str
-    model: str = "llama3.2" 
+    model: str = "mistral" 
 
 @app.get("/account/{email}")
 async def get_user(email: str):

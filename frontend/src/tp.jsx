@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Sparkles, Menu, X } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/DashBoard';
@@ -11,6 +11,7 @@ import Templates from './components/Templates';
 import Scheduler from './components/Schedular';
 
 // Mock service function - replace with your actual service
+// This is kept for demonstration if the actual ollamaservices is not running
 const sendPromptToBackend = async (prompt) => {
   // Simulate API call
   await new Promise(resolve => setTimeout(resolve, 1000));
@@ -28,6 +29,7 @@ export default function CloutCraftApp() {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [currentDraftToSchedule, setCurrentDraftToSchedule] = useState(null);
 
+  // Lifted state for chat messages, input, loading, and image file from Conversations.js
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -37,12 +39,13 @@ export default function CloutCraftApp() {
     }
   ]);
   const [inputValue, setInputValue] = useState('');
-  const [drafts, setDrafts] = useState([]);
-  const [scheduledMessages, setScheduledMessages] = useState([]);
-  const [moveSuccessMessage, setMoveSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [imageFile, setImageFile] = useState(null);
 
+  const [drafts, setDrafts] = useState([]);
+  const [scheduledMessages, setScheduledMessages] = useState([]);
+  const [moveSuccessMessage, setMoveSuccessMessage] = useState('');
+  
   const userInfo = {
     name: "John Doe",
     email: "john.doe@example.com"
@@ -68,11 +71,16 @@ export default function CloutCraftApp() {
       }
     ]);
     setInputValue('');
+    setImageFile(null); // Reset image file on new chat
+    setIsLoading(false); // Reset loading state on new chat
     setActiveView('conversations');
     setMoveSuccessMessage('New chat started!');
     setTimeout(() => setMoveSuccessMessage(''), 2000);
   };
 
+  // This handleSendMessage is for the mock backend.
+  // The actual Conversations component will use its own handleSendMessage
+  // which calls the generateText service. This function is not directly used by Conversations now.
   const handleSendMessage = async () => {
     if (!inputValue.trim() && !imageFile) return;
 
@@ -90,7 +98,9 @@ export default function CloutCraftApp() {
     setIsLoading(true);
 
     try {
-      const responseText = await sendPromptToBackend(inputValue);
+      // This part would ideally be handled by the generateText service in Conversations.js
+      // This mock is just a fallback if ollamaservices isn't fully integrated or available.
+      const responseText = await sendPromptToBackend(inputValue); 
 
       const assistantMessage = {
         id: userMessage.id + 1,
@@ -189,16 +199,18 @@ export default function CloutCraftApp() {
         return (
           <Conversations
             messages={messages}
+            setMessages={setMessages} // Pass setter
             inputValue={inputValue}
-            setInputValue={setInputValue}
+            setInputValue={setInputValue} // Pass setter
             isLoading={isLoading}
-            handleSendMessage={handleSendMessage}
+            setIsLoading={setIsLoading} // Pass setter
+            handleSendMessage={handleSendMessage} // This is the mock one, Conversations.js uses its own
             handleImageUpload={handleImageUpload}
             handleCopyMessage={handleCopyMessage}
             handleMoveToDrafts={handleMoveToDrafts}
             handleNewChat={handleNewChat}
             imageFile={imageFile}
-            setImageFile={setImageFile}
+            setImageFile={setImageFile} // Pass setter
           />
         );
       case 'drafts':

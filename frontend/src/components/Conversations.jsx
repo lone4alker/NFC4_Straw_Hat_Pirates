@@ -2,7 +2,8 @@ import React, { useRef, useState } from 'react';
 import { Sparkles, Send, Copy, ArrowRight, Image, X } from 'lucide-react';
 import { generateText } from '../Service/ollamaservices'; // Import the new service function
 
-export default function Conversations() { // Removed props here
+// Now accepting handleMoveToDrafts as a prop
+export default function Conversations({ handleMoveToDrafts }) { 
   const fileInputRef = useRef(null);
   const [messages, setMessages] = useState([]); // State for chat messages, now internal
   const [inputValue, setInputValue] = useState(''); // State for the input field, now internal
@@ -38,7 +39,8 @@ export default function Conversations() { // Removed props here
     setIsLoading(true);
 
     try {
-      const aiResponse = await generateText(inputValue, "llama3.2", selectedTone, temperature);
+      // Changed the model from "llama3.2" to "mistral"
+      const aiResponse = await generateText(inputValue, "mistral", selectedTone, temperature);
 
       const assistantMessage = {
         id: Date.now() + 1,
@@ -50,23 +52,22 @@ export default function Conversations() { // Removed props here
       console.error("Error sending message to AI:", error);
       setMessages((prevMessages) => [
         ...prevMessages,
-        { id: Date.now() + 1, type: 'assistant', content: `Error: ${error.message}. Please ensure Ollama is running and the model ('llama3.2' or 'llama2') is pulled.` }
+        { id: Date.now() + 1, type: 'assistant', content: `Error: ${error.message}. Please ensure Ollama is running and the model ('mistral') is pulled.` }
       ]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Define these functions internally as they are no longer passed as props
+  // Define handleCopyMessage internally as it's not passed as a prop
   const handleCopyMessage = (content) => {
     document.execCommand('copy', false, content);
     // Optional: Provide user feedback that text was copied
     console.log('Text copied to clipboard!');
   };
 
-  const handleMoveToDrafts = (message) => {
-    console.log("Moving to drafts:", message);
-  };
+  // The handleMoveToDrafts function is now received via props from the parent component.
+  // This ensures the correct logic for adding to drafts is used.
 
   const handleNewChat = () => {
     setMessages([]);
@@ -121,7 +122,7 @@ export default function Conversations() { // Removed props here
                     Copy
                   </button>
                   <button
-                    onClick={() => handleMoveToDrafts(message)}
+                    onClick={() => handleMoveToDrafts(message)} // Now correctly using the prop
                     className="flex items-center gap-1 text-xs text-gray-500 hover:text-emerald-500 transition-colors"
                   >
                     <ArrowRight className="w-3 h-3" />
