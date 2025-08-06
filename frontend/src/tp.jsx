@@ -1,5 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Sparkles, Menu, X } from 'lucide-react';
+import { getDatabase, ref, push, set } from 'firebase/database';
+import { getAuth } from 'firebase/auth';
+import { app } from './components/firebase'; // Your firebase config
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/DashBoard';
 import Conversations from './components/Conversations';
@@ -10,45 +13,22 @@ import Collaboration from './components/Collaboration';
 import Templates from './components/Templates';
 import Scheduler from './components/Schedular';
 
-// Mock service function - replace with your actual service
-// This is kept for demonstration if the actual ollamaservices is not running
-const sendPromptToBackend = async (prompt) => {
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  if (prompt.toLowerCase().includes('collaboration')) {
-    return 'Collaboration is a powerful feature! You can grant access to team members to view and edit your drafts. Go to the "Collaboration" tab, select a draft, and invite teammates via email to start working together in real-time.';
-  }
-
-  return `This is a mock response to: "${prompt}". In a real implementation, this would come from your AI backend.`;
-};
-
 export default function CloutCraftApp() {
   const [activeView, setActiveView] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [currentDraftToSchedule, setCurrentDraftToSchedule] = useState(null);
-
-  // Lifted state for chat messages, input, loading, and image file from Conversations.js
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      type: 'assistant',
-      content: 'Hello! I\'m your AI assistant. How can I help you today?',
-      timestamp: new Date()
-    }
-  ]);
-  const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [imageFile, setImageFile] = useState(null);
-
-  const [drafts, setDrafts] = useState([]);
   const [scheduledMessages, setScheduledMessages] = useState([]);
   const [moveSuccessMessage, setMoveSuccessMessage] = useState('');
-  
+  const [initialConversationPrompt, setInitialConversationPrompt] = useState(''); // New state for initial prompt
+
+  // Get Firebase auth instance and current user
+  const auth = getAuth(app);
+  const user = auth.currentUser;
+
   const userInfo = {
-    name: "John Doe",
-    email: "john.doe@example.com"
+    name: user?.displayName || "John Doe",
+    email: user?.email || "john.doe@example.com"
   };
 
   const navItems = [
@@ -61,105 +41,57 @@ export default function CloutCraftApp() {
     { id: 'settings', label: 'Settings', icon: 'Settings' }
   ];
 
+  // Modified setActiveView to accept an optional prompt
+  const handleSetActiveView = (view, prompt = '') => {
+    setActiveView(view);
+    setInitialConversationPrompt(prompt); // Set the prompt for Conversations
+  };
+
   const handleNewChat = () => {
-    setMessages([
-      {
-        id: 1,
-        type: 'assistant',
-        content: 'Hello! I\'m your AI assistant. How can I help you today?',
-        timestamp: new Date()
-      }
-    ]);
-    setInputValue('');
-    setImageFile(null); // Reset image file on new chat
-    setIsLoading(false); // Reset loading state on new chat
-    setActiveView('conversations');
+    handleSetActiveView('conversations', ''); // Clear prompt for new chat
     setMoveSuccessMessage('New chat started!');
     setTimeout(() => setMoveSuccessMessage(''), 2000);
   };
 
-  // This handleSendMessage is for the mock backend.
-  // The actual Conversations component will use its own handleSendMessage
-  // which calls the generateText service. This function is not directly used by Conversations now.
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() && !imageFile) return;
-
-    const userMessage = {
-      id: messages.length + 1,
-      type: 'user',
-      content: inputValue,
-      timestamp: new Date(),
-      image: imageFile
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
-    setImageFile(null);
-    setIsLoading(true);
-
-    try {
-      // This part would ideally be handled by the generateText service in Conversations.js
-      // This mock is just a fallback if ollamaservices isn't fully integrated or available.
-      const responseText = await sendPromptToBackend(inputValue); 
-
-      const assistantMessage = {
-        id: userMessage.id + 1,
-        type: 'assistant',
-        content: responseText || 'Error: No response from AI.',
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
-      const errorMessage = {
-        id: userMessage.id + 1,
-        type: 'assistant',
-        content: 'Something went wrong while contacting the AI backend.',
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleImageUpload = (file) => {
-    setImageFile(file);
-    setMoveSuccessMessage('Image attached. Send your message to use it!');
-    setTimeout(() => setMoveSuccessMessage(''), 3000);
-  };
-  
-  const handleCopyMessage = (content) => {
-    navigator.clipboard.writeText(content);
-    setMoveSuccessMessage('Message copied to clipboard!');
-    setTimeout(() => setMoveSuccessMessage(''), 2000);
-  };
-
-  const handleMoveToDrafts = (message) => {
-    const existingDraft = drafts.find(draft => draft.originalMessageId === message.id);
-    if (existingDraft) {
-      setMoveSuccessMessage('Message already in drafts!');
+  // Firebase integration for moving messages to drafts
+  const handleMoveToDrafts = async (message) => {
+    if (!user) {
+      setMoveSuccessMessage('Please log in to save drafts');
       setTimeout(() => setMoveSuccessMessage(''), 3000);
       return;
     }
 
-    const draftItem = {
-      id: Date.now(),
-      content: message.content,
-      image: message.image || null,
-      timestamp: new Date()
-    };
-    
-    setDrafts(prevDrafts => [...prevDrafts, draftItem]);
-    setMoveSuccessMessage('Message moved to Final Drafts!');
-    setTimeout(() => setMoveSuccessMessage(''), 3000);
-  };
+    try {
+      const db = getDatabase(app);
+      const draftsRef = ref(db, `drafts/${user.uid}`);
 
-  const handleDeleteDraft = (draftId) => {
-    setDrafts(prevDrafts => prevDrafts.filter(draft => draft.id !== draftId));
-    setMoveSuccessMessage('Draft deleted successfully!');
-    setTimeout(() => setMoveSuccessMessage(''), 3000);
+      // Prepare the draft data to match your FinalDrafts component structure
+      const draftData = {
+        content: message.content,
+        timestamp: message.timestamp || new Date().toISOString(),
+        type: message.type || 'assistant',
+        movedFromChat: true,
+        originalMessageId: message.id,
+        // Note: Image handling would require Firebase Storage integration
+        // For now, we'll just note if there was an image
+        hasImage: !!message.image,
+        // If you want to store image URLs from Firebase Storage, add:
+        // imageUrl: message.imageUrl || null
+      };
+
+      // Push the draft to Firebase
+      const newDraftRef = await push(draftsRef, draftData);
+
+      setMoveSuccessMessage('Message moved to Final Drafts!');
+      setTimeout(() => setMoveSuccessMessage(''), 3000);
+
+      console.log('Message successfully moved to drafts with ID:', newDraftRef.key);
+
+    } catch (error) {
+      console.error('Error moving message to drafts:', error);
+      setMoveSuccessMessage('Failed to move message to drafts. Please try again.');
+      setTimeout(() => setMoveSuccessMessage(''), 3000);
+    }
   };
 
   const handleOpenScheduleModal = (draft) => {
@@ -172,65 +104,151 @@ export default function CloutCraftApp() {
     setCurrentDraftToSchedule(null);
   };
 
-  const handleScheduleDraft = (draftId, newContent, date, time) => {
-    const scheduledDateTime = new Date(`${date}T${time}`);
-    const draftToSchedule = drafts.find(d => d.id === draftId);
-    if (draftToSchedule) {
-        const newScheduledMessage = {
-            ...draftToSchedule,
-            content: newContent,
-            scheduledFor: scheduledDateTime,
-            status: 'pending'
-        };
-        setScheduledMessages(prev => [...prev, newScheduledMessage]);
-        setDrafts(prevDrafts => prevDrafts.filter(draft => draft.id !== draftId));
+  // Enhanced scheduling function to handle recurring posts
+  const handleScheduleDraft = async (draftId, scheduleData) => {
+    if (!user) {
+      setMoveSuccessMessage('Please log in to schedule messages');
+      setTimeout(() => setMoveSuccessMessage(''), 3000);
+      return;
     }
 
-    setMoveSuccessMessage(`Draft scheduled for ${scheduledDateTime.toLocaleString()}! A reminder will be sent via email.`);
-    setTimeout(() => setMoveSuccessMessage(''), 5000);
-    handleCloseScheduleModal();
+    try {
+      const db = getDatabase(app);
+      const scheduledRef = ref(db, `scheduled/${user.uid}`);
+
+      // Create the base scheduled date/time
+      const baseDateTime = new Date(`${scheduleData.date}T${scheduleData.time}`);
+
+      if (scheduleData.isRecurring) {
+        // Generate multiple scheduled posts based on recurrence settings
+        const scheduledPosts = generateRecurringPosts(scheduleData, baseDateTime);
+
+        // Save each scheduled post
+        for (const post of scheduledPosts) {
+          const scheduledData = {
+            originalDraftId: draftId,
+            content: scheduleData.content,
+            scheduledFor: post.scheduledFor.toISOString(),
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+            recurrence: post.recurrenceInfo,
+            isRecurring: true,
+            recurrenceGroup: post.groupId // To identify posts that belong to the same recurring series
+          };
+
+          await push(scheduledRef, scheduledData);
+        }
+
+        setMoveSuccessMessage(`${scheduledPosts.length} recurring posts scheduled successfully!`);
+
+      } else {
+        // Single scheduled post
+        const scheduledData = {
+          originalDraftId: draftId,
+          content: scheduleData.content,
+          scheduledFor: baseDateTime.toISOString(),
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          isRecurring: false
+        };
+
+        await push(scheduledRef, scheduledData);
+        setMoveSuccessMessage(`Draft scheduled for ${baseDateTime.toLocaleString()}!`);
+      }
+
+      // Auto-navigate to scheduler after successful scheduling
+      setTimeout(() => {
+        handleSetActiveView('scheduler'); // Use handleSetActiveView
+        setMoveSuccessMessage('');
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error scheduling draft:', error);
+      setMoveSuccessMessage('Failed to schedule draft. Please try again.');
+      setTimeout(() => setMoveSuccessMessage(''), 3000);
+    }
+  };
+
+  // Helper function to generate recurring posts
+  const generateRecurringPosts = (scheduleData, baseDateTime) => {
+    const posts = [];
+    const groupId = Date.now().toString(); // Unique group ID for this recurring series
+    let currentDate = new Date(baseDateTime);
+    let count = 0;
+    const maxPosts = scheduleData.endType === 'occurrences' ? scheduleData.numberOfOccurrences : 100;
+    const endDate = scheduleData.endType === 'date' ? new Date(scheduleData.endDate) : null;
+
+    while (count < maxPosts) {
+      // Stop if we've reached the end date
+      if (endDate && currentDate > endDate) break;
+
+      // Stop if we're only doing a certain number of occurrences
+      if (scheduleData.endType === 'occurrences' && count >= scheduleData.numberOfOccurrences) break;
+
+      // Add current date to posts
+      posts.push({
+        scheduledFor: new Date(currentDate),
+        groupId: groupId,
+        recurrenceInfo: `${scheduleData.recurrenceType} (${count + 1}/${scheduleData.endType === 'occurrences' ? scheduleData.numberOfOccurrences : '∞'})`
+      });
+
+      // Calculate next occurrence
+      switch (scheduleData.recurrenceType) {
+        case 'daily':
+          currentDate.setDate(currentDate.getDate() + scheduleData.recurrenceInterval);
+          break;
+        case 'weekly':
+          currentDate.setDate(currentDate.getDate() + (7 * scheduleData.recurrenceInterval));
+          break;
+        case 'monthly':
+          currentDate.setMonth(currentDate.getMonth() + scheduleData.recurrenceInterval);
+          break;
+        case 'yearly':
+          currentDate.setFullYear(currentDate.getFullYear() + scheduleData.recurrenceInterval);
+          break;
+      }
+
+      count++;
+
+      // Safety check to prevent infinite loops
+      if (count > 1000) break;
+    }
+
+    return posts;
   };
 
   const renderMainContent = () => {
     switch (activeView) {
       case 'dashboard':
-        return <Dashboard setActiveView={setActiveView} />;
+        return <Dashboard setActiveView={handleSetActiveView} />;
       case 'conversations':
         return (
           <Conversations
-            messages={messages}
-            setMessages={setMessages} // Pass setter
-            inputValue={inputValue}
-            setInputValue={setInputValue} // Pass setter
-            isLoading={isLoading}
-            setIsLoading={setIsLoading} // Pass setter
-            handleSendMessage={handleSendMessage} // This is the mock one, Conversations.js uses its own
-            handleImageUpload={handleImageUpload}
-            handleCopyMessage={handleCopyMessage}
             handleMoveToDrafts={handleMoveToDrafts}
-            handleNewChat={handleNewChat}
-            imageFile={imageFile}
-            setImageFile={setImageFile} // Pass setter
+            initialPrompt={initialConversationPrompt} // Pass the initial prompt here
           />
         );
       case 'drafts':
         return (
           <FinalDrafts
-            drafts={drafts}
-            handleDeleteDraft={handleDeleteDraft}
             handleOpenScheduleModal={handleOpenScheduleModal}
           />
         );
       case 'templates':
-        return <Templates />;
+        return <Templates setActiveView={handleSetActiveView} />; {/* Pass handleSetActiveView */}
       case 'collaboration':
         return <Collaboration />;
       case 'scheduler':
-        return <Scheduler scheduledMessages={scheduledMessages} />;
+        return (
+          <Scheduler
+            scheduledMessages={scheduledMessages}
+            setActiveView={handleSetActiveView}
+          />
+        );
       case 'settings':
         return <Placeholder title={navItems.find(item => item.id === activeView)?.label || 'Coming Soon'} />;
       default:
-        return <Dashboard setActiveView={setActiveView} />;
+        return <Dashboard setActiveView={handleSetActiveView} />;
     }
   };
 
@@ -241,13 +259,14 @@ export default function CloutCraftApp() {
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
           activeView={activeView}
-          setActiveView={setActiveView}
+          setActiveView={handleSetActiveView}
           handleNewChat={handleNewChat}
           navItems={navItems}
           userInfo={userInfo}
         />
 
         <div className="flex-1 flex flex-col">
+          {/* Mobile header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200 lg:hidden bg-white">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -261,16 +280,25 @@ export default function CloutCraftApp() {
             </div>
           </div>
 
+          {/* Success/Error Messages */}
           {moveSuccessMessage && (
-            <div className="mx-4 mt-2 p-3 bg-emerald-100 border border-emerald-500 text-emerald-700 rounded-lg text-sm">
+            <div className={`mx-4 mt-2 p-3 rounded-lg text-sm border ${
+              moveSuccessMessage.includes('Failed') || moveSuccessMessage.includes('Please log in')
+                ? 'bg-red-100 border-red-500 text-red-700'
+                : 'bg-emerald-100 border-emerald-500 text-emerald-700'
+            }`}>
               {moveSuccessMessage}
             </div>
           )}
 
-          {renderMainContent()}
+          {/* Main Content */}
+          <div className="flex-1 min-h-0">
+            {renderMainContent()}
+          </div>
         </div>
       </div>
-      
+
+      {/* Enhanced Schedule Modal */}
       {currentDraftToSchedule && (
         <ScheduleModal
           isOpen={isScheduleModalOpen}

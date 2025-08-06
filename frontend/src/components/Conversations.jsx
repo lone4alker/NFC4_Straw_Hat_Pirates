@@ -1,16 +1,31 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Sparkles, Send, Copy, ArrowRight, Image, X } from 'lucide-react';
 import { generateText } from '../Service/ollamaservices'; // Import the new service function
 
-// Now accepting handleMoveToDrafts as a prop
-export default function Conversations({ handleMoveToDrafts }) { 
+// Now accepting handleMoveToDrafts and initialPrompt as props
+export default function Conversations({ handleMoveToDrafts, initialPrompt }) {
   const fileInputRef = useRef(null);
+  const messagesEndRef = useRef(null);
   const [messages, setMessages] = useState([]); // State for chat messages, now internal
   const [inputValue, setInputValue] = useState(''); // State for the input field, now internal
   const [isLoading, setIsLoading] = useState(false); // State for loading indicator, now internal
   const [imageFile, setImageFile] = useState(null); // State for image file, now internal
-  const [selectedTone, setSelectedTone] = useState('neutral'); // State for tone, now internal
-  const [temperature, setTemperature] = useState(0.7); // State for temperature, now internal
+
+  // Auto-scroll to bottom when new messages are added
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Effect to set initial input value from template click
+  useEffect(() => {
+    if (initialPrompt) {
+      setInputValue(`-/${initialPrompt} -> `);
+    }
+  }, [initialPrompt]);
 
   const handleFileButtonClick = () => {
     fileInputRef.current.click();
@@ -39,8 +54,8 @@ export default function Conversations({ handleMoveToDrafts }) {
     setIsLoading(true);
 
     try {
-      // Changed the model from "llama3.2" to "mistral"
-      const aiResponse = await generateText(inputValue, "mistral", selectedTone, temperature);
+      // Using default settings without tone and temperature controls
+      const aiResponse = await generateText(inputValue, "mistral", "neutral", 0.7);
 
       const assistantMessage = {
         id: Date.now() + 1,
@@ -59,28 +74,57 @@ export default function Conversations({ handleMoveToDrafts }) {
     }
   };
 
-  // Define handleCopyMessage internally as it's not passed as a prop
-  const handleCopyMessage = (content) => {
-    document.execCommand('copy', false, content);
-    // Optional: Provide user feedback that text was copied
-    console.log('Text copied to clipboard!');
+  // Updated copy function to use modern clipboard API
+  const handleCopyMessage = async (content) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      console.log('Text copied to clipboard!');
+      // You could add a toast notification here
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = content;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      console.log('Text copied to clipboard!');
+    }
   };
 
-  // The handleMoveToDrafts function is now received via props from the parent component.
-  // This ensures the correct logic for adding to drafts is used.
+  // Enhanced move to drafts function
+  const handleMoveToDraftsClick = (message) => {
+    if (handleMoveToDrafts && typeof handleMoveToDrafts === 'function') {
+      handleMoveToDrafts({
+        ...message,
+        timestamp: new Date().toISOString(),
+        movedFromChat: true
+      });
+      console.log('Message moved to drafts:', message.content);
+      // You could add a toast notification here
+    } else {
+      console.error('handleMoveToDrafts function not provided or not a function');
+    }
+  };
 
   const handleNewChat = () => {
     setMessages([]);
     setInputValue('');
     setImageFile(null);
-    setSelectedTone('neutral');
-    setTemperature(0.7);
     setIsLoading(false);
   };
 
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
   return (
-    <div className="flex-1 flex flex-col bg-white font-sans">
-      <div className="bg-white border-b border-gray-200 p-4 rounded-t-lg">
+    <div className="flex-1 flex flex-col bg-white font-sans h-full">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 p-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center text-white shadow-md">
@@ -100,18 +144,33 @@ export default function Conversations({ handleMoveToDrafts }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      {/* Messages Container - Scrollable */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 min-h-0">
+        {messages.length === 0 && (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="text-center">
+              <Sparkles className="w-12 h-12 mx-auto mb-4 text-emerald-300" />
+              <p className="text-lg font-medium">Start a conversation</p>
+              <p className="text-sm">Ask me anything to get started!</p>
+            </div>
+          </div>
+        )}
+
         {messages.map((message) => (
           <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-3xl rounded-xl p-4 shadow-sm ${
-              message.type === 'user' 
-                ? 'bg-emerald-500 text-white ml-12' 
+              message.type === 'user'
+                ? 'bg-emerald-500 text-white ml-12'
                 : 'bg-gray-100 border border-gray-200 text-gray-900 mr-12'
             }`}>
               {message.image && (
-                <img src={URL.createObjectURL(message.image)} alt="User upload" className="max-h-48 rounded-lg mb-4 object-cover" />
+                <img
+                  src={URL.createObjectURL(message.image)}
+                  alt="User upload"
+                  className="max-h-48 rounded-lg mb-4 object-cover w-full"
+                />
               )}
-              <div className="whitespace-pre-wrap">{message.content}</div>
+              <div className="whitespace-pre-wrap break-words">{message.content}</div>
               {message.type === 'assistant' && (
                 <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-300">
                   <button
@@ -122,7 +181,7 @@ export default function Conversations({ handleMoveToDrafts }) {
                     Copy
                   </button>
                   <button
-                    onClick={() => handleMoveToDrafts(message)} // Now correctly using the prop
+                    onClick={() => handleMoveToDraftsClick(message)}
                     className="flex items-center gap-1 text-xs text-gray-500 hover:text-emerald-500 transition-colors"
                   >
                     <ArrowRight className="w-3 h-3" />
@@ -133,6 +192,7 @@ export default function Conversations({ handleMoveToDrafts }) {
             </div>
           </div>
         ))}
+
         {isLoading && (
           <div className="flex justify-start">
             <div className="bg-gray-100 border border-gray-200 rounded-xl p-4 mr-12 shadow-sm">
@@ -145,13 +205,21 @@ export default function Conversations({ handleMoveToDrafts }) {
             </div>
           </div>
         )}
+
+        {/* Scroll anchor */}
+        <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-6 border-t border-gray-200 bg-white rounded-b-lg shadow-lg">
+      {/* Input Section - Fixed at bottom */}
+      <div className="p-6 border-t border-gray-200 bg-white shadow-lg flex-shrink-0">
         {imageFile && (
           <div className="relative mb-4">
-            <img src={URL.createObjectURL(imageFile)} alt="Preview" className="max-h-32 rounded-lg object-cover" />
-            <button 
+            <img
+              src={URL.createObjectURL(imageFile)}
+              alt="Preview"
+              className="max-h-32 rounded-lg object-cover"
+            />
+            <button
               onClick={() => setImageFile(null)}
               className="absolute top-1 right-1 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-70 transition-colors"
             >
@@ -159,52 +227,16 @@ export default function Conversations({ handleMoveToDrafts }) {
             </button>
           </div>
         )}
-        <div className="flex flex-col gap-4 mb-4">
-          {/* Tone Selector */}
-          <div className="flex items-center gap-3">
-            <label htmlFor="tone-select" className="text-gray-700 text-sm font-medium min-w-[60px]">Tone:</label>
-            <select
-              id="tone-select"
-              value={selectedTone}
-              onChange={(e) => setSelectedTone(e.target.value)}
-              className="flex-1 bg-gray-100 border border-gray-300 rounded-lg px-4 py-2 text-gray-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-sm"
-              disabled={isLoading}
-            >
-              <option value="neutral">Neutral</option>
-              <option value="friendly">Friendly</option>
-              <option value="formal">Formal</option>
-              <option value="humorous">Humorous</option>
-              <option value="sarcastic">Sarcastic</option>
-            </select>
-          </div>
-
-          {/* Temperature Slider */}
-          <div className="flex items-center gap-3">
-            <label htmlFor="temperature-slider" className="text-gray-700 text-sm font-medium min-w-[60px]">Creativity:</label>
-            <input
-              type="range"
-              id="temperature-slider"
-              min="0"
-              max="1"
-              step="0.1"
-              value={temperature}
-              onChange={(e) => setTemperature(parseFloat(e.target.value))}
-              className="flex-1 accent-emerald-500 h-2 rounded-lg appearance-none cursor-pointer"
-              disabled={isLoading}
-            />
-            <span className="text-gray-700 text-sm font-medium w-8 text-right">{temperature.toFixed(1)}</span>
-          </div>
-        </div>
 
         <div className="flex gap-4">
-          <input
-            type="text"
+          <textarea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            onKeyPress={handleKeyPress}
             placeholder="Message AI Assistant..."
-            className="flex-1 bg-gray-100 border border-gray-300 rounded-lg px-6 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-inner"
+            className="flex-1 bg-gray-100 border border-gray-300 rounded-lg px-6 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-inner resize-none min-h-[56px] max-h-32"
             disabled={isLoading}
+            rows={1}
           />
           <input
             type="file"
@@ -215,7 +247,7 @@ export default function Conversations({ handleMoveToDrafts }) {
           />
           <button
             onClick={handleFileButtonClick}
-            className="bg-gray-200 hover:bg-gray-300 px-6 py-4 rounded-lg transition-colors text-gray-600 shadow-md"
+            className="bg-gray-200 hover:bg-gray-300 px-6 py-4 rounded-lg transition-colors text-gray-600 shadow-md flex-shrink-0"
             disabled={isLoading}
           >
             <Image className="w-5 h-5" />
@@ -223,13 +255,13 @@ export default function Conversations({ handleMoveToDrafts }) {
           <button
             onClick={handleSendMessage}
             disabled={(!inputValue.trim() && !imageFile) || isLoading}
-            className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-4 rounded-lg transition-colors text-white shadow-md"
+            className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-4 rounded-lg transition-colors text-white shadow-md flex-shrink-0"
           >
             <Send className="w-5 h-5" />
           </button>
         </div>
         <div className="mt-2 text-xs text-gray-500 text-center">
-          AI can make mistakes. Verify important information.
+          AI can make mistakes. Verify important information. Press Shift+Enter for new line.
         </div>
       </div>
     </div>
