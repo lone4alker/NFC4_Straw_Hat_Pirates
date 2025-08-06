@@ -1,355 +1,364 @@
-import React, { useState, useEffect } from 'react';
-import { auth } from './firebase'; // adjust path as needed
-import { getDatabase, ref, get, update } from 'firebase/database';
-import { onAuthStateChanged } from 'firebase/auth';
-import { User, Edit3, Save, X, Mail, Briefcase, Building, Sparkles } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { getAuth, onAuthStateChanged, signOut, updateProfile as updateFirebaseAuthProfile } from 'firebase/auth';
+import { getDatabase, ref, get, set } from 'firebase/database'; // Import 'set' for updating
+import { app } from './firebase.js'; // Ensure this path is correct for your Firebase app initialization
+import {
+  User, Mail, Briefcase, Building, Link as LinkIcon, Youtube, X, Edit, LogOut, Save, XCircle
+} from 'lucide-react'; // Icons for profile details
+import { useNavigate } from 'react-router-dom'; // Import useNavigate for redirection
 
-const UserProfile = () => {
-  const [user, setUser] = useState(null);
-  const [userData, setUserData] = useState({
-    name: '',
-    email: '',
-    role: '',
-    industry: ''
-  });
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({});
+export default function Profile() {
+  const [profileData, setProfileData] = useState(null); // Data displayed
+  const [editFormData, setEditFormData] = useState(null); // Data being edited
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState('');
+  const [error, setError] = useState('');
+  const [isEditing, setIsEditing] = useState(false); // State for edit mode
+  const [successMessage, setSuccessMessage] = useState(''); // State for success messages
+  const navigate = useNavigate(); // Initialize useNavigate
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        await fetchUserData(currentUser.uid);
+    const auth = getAuth(app);
+    const database = getDatabase(app);
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        let userData = {
+          name: user.displayName || 'N/A', // Fallback to N/A if displayName is null
+          email: user.email || 'N/A',
+          uid: user.uid,
+          photoURL: user.photoURL || null,
+          role: 'N/A',
+          industry: 'N/A',
+          platforms: {
+            reddit: 'N/A',
+            youtube: 'N/A',
+            x: 'N/A',
+          },
+        };
+
+        try {
+          const userRef = ref(database, 'users/' + user.uid);
+          const snapshot = await get(userRef);
+          if (snapshot.exists()) {
+            const dbData = snapshot.val();
+            userData = {
+              ...userData,
+              // Prioritize DB name if available, otherwise use Auth displayName or 'N/A'
+              name: dbData.name || userData.name,
+              role: dbData.role || userData.role,
+              industry: dbData.industry || userData.industry,
+              platforms: {
+                reddit: dbData.platforms?.reddit || 'N/A',
+                youtube: dbData.platforms?.youtube || 'N/A',
+                x: dbData.platforms?.x || 'N/A',
+              },
+            };
+          }
+        } catch (dbError) {
+          console.error("Error fetching profile from Realtime Database:", dbError);
+          setError("Failed to load full profile data. Please try again.");
+        }
+
+        setProfileData(userData);
+        setEditFormData(userData); // Initialize edit form data with current profile data
       } else {
-        setLoading(false);
+        setProfileData(null);
+        setEditFormData(null);
+        setError("You must be logged in to view this page.");
       }
+      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const fetchUserData = async (uid) => {
+  // Derive the user's initials for the avatar
+  const userInitials = profileData?.name
+    ? profileData.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
+    : 'G'; // Default to 'G' for 'Guest' or loading
+
+  const handleEditToggle = () => {
+    setIsEditing(!isEditing);
+    // When entering edit mode, reset editFormData to current profileData
+    if (!isEditing) {
+      setEditFormData(profileData);
+      setSuccessMessage(''); // Clear any previous success messages
+    } else {
+      // If cancelling, clear any changes in editFormData
+      setEditFormData(profileData);
+    }
+    setError(''); // Clear any previous errors
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    // Handle nested 'platforms' object
+    if (name.startsWith('platforms.')) {
+      const platformKey = name.split('.')[1];
+      setEditFormData(prev => ({
+        ...prev,
+        platforms: {
+          ...prev.platforms,
+          [platformKey]: value,
+        },
+      }));
+    } else {
+      setEditFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    setLoading(true);
+    setError('');
+    setSuccessMessage('');
+    const auth = getAuth(app);
+    const database = getDatabase(app);
+    const user = auth.currentUser;
+
+    if (!user || !editFormData) {
+      setError("No user logged in or data to save.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const database = getDatabase();
-      const userRef = ref(database, `users/${uid}`);
-      const snapshot = await get(userRef);
-      
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        setUserData({
-          name: data.name || '',
-          email: data.email || '',
-          role: data.role || '',
-          industry: data.industry || ''
-        });
-        setEditForm({
-          name: data.name || '',
-          email: data.email || '',
-          role: data.role || '',
-          industry: data.industry || ''
-        });
+      // 1. Update Firebase Authentication displayName if it changed
+      if (user.displayName !== editFormData.name) {
+        await updateFirebaseAuthProfile(user, { displayName: editFormData.name });
       }
-    } catch (error) {
-      showMessage('Error fetching user data', 'error');
+
+      // 2. Update Realtime Database
+      const userRef = ref(database, 'users/' + user.uid);
+      await set(userRef, {
+        name: editFormData.name,
+        email: editFormData.email, // Email generally shouldn't be changed via profile edit, but included for completeness if your DB schema allows
+        role: editFormData.role,
+        industry: editFormData.industry,
+        platforms: editFormData.platforms,
+        uid: user.uid,
+      });
+
+      setProfileData(editFormData); // Update displayed data
+      setIsEditing(false); // Exit edit mode
+      setSuccessMessage('Profile updated successfully!');
+    } catch (err) {
+      console.error("Error saving profile:", err);
+      setError("Failed to save profile changes: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const showMessage = (msg, type) => {
-    setMessage(msg);
-    setMessageType(type);
-    setTimeout(() => {
-      setMessage('');
-      setMessageType('');
-    }, 3000);
-  };
-
-  const handleEdit = () => {
-    setIsEditing(true);
-    setEditForm({ ...userData });
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    setEditForm({ ...userData });
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setEditForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSave = async () => {
-    if (!user) return;
-
-    setSaving(true);
+  const handleLogout = async () => {
+    const auth = getAuth(app);
     try {
-      const database = getDatabase();
-      const userRef = ref(database, `users/${user.uid}`);
-      
-      await update(userRef, {
-        name: editForm.name,
-        role: editForm.role,
-        industry: editForm.industry
-      });
-
-      setUserData({ ...editForm });
-      setIsEditing(false);
-      showMessage('Profile updated successfully!', 'success');
-    } catch (error) {
-      showMessage('Error updating profile', 'error');
-    } finally {
-      setSaving(false);
+      await signOut(auth);
+      setProfileData(null); // Clear profile data
+      setEditFormData(null);
+      navigate('/login'); // Redirect to login page after logout
+    } catch (err) {
+      console.error("Error logging out:", err);
+      setError("Failed to log out: " + err.message);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-cyan-400 text-lg font-medium">Loading your profile...</p>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 to-lime-50">
+        <div className="text-lg text-gray-600">Loading profile...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 to-lime-50">
+        <div className="bg-red-100 text-red-700 p-4 rounded-lg shadow-md">
+          {error}
         </div>
       </div>
     );
   }
 
-  if (!user) {
+  if (!profileData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center text-white">
-          <User className="w-16 h-16 mx-auto mb-4 text-cyan-400" />
-          <h2 className="text-2xl font-bold mb-2">Please sign in</h2>
-          <p className="text-gray-300">You need to be logged in to view your profile</p>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 to-lime-50">
+        <div className="bg-yellow-100 text-yellow-700 p-4 rounded-lg shadow-md">
+          No profile data available. Please log in.
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-gradient-to-r from-cyan-400/20 to-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-r from-emerald-400/10 to-teal-500/10 rounded-full blur-3xl animate-bounce"></div>
-        
-        {/* Floating Particles */}
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className={`absolute w-2 h-2 bg-cyan-400/30 rounded-full animate-ping`}
-            style={{
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${2 + Math.random() * 2}s`
-            }}
-          ></div>
-        ))}
-      </div>
-
-      {/* Header */}
-      <div className="relative z-10 pt-8 pb-6">
-        <div className="container mx-auto px-6">
-          <div className="text-center">
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2 tracking-tight">
-              ClautCraft
-            </h1>
-            <p className="text-gray-300 text-lg">Your Digital Identity Hub</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="relative z-10 flex-1 flex items-start justify-center px-6 pb-12">
-        <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-3xl shadow-2xl w-full max-w-2xl p-8">
-          
-          {/* Message Display */}
-          {message && (
-            <div className={`mb-6 p-4 rounded-xl border ${
-              messageType === 'success' 
-                ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300' 
-                : 'bg-red-500/20 border-red-500/30 text-red-300'
-            }`}>
-              {message}
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-lime-50 p-8 flex items-center justify-center">
+      <div className="bg-white/95 backdrop-blur-xl shadow-2xl rounded-3xl w-full max-w-2xl p-10 border border-green-100/50 relative overflow-y-auto max-h-[90vh]"> {/* Added overflow-y-auto and max-h */}
+        {/* Edit and Logout Buttons */}
+        <div className="absolute top-6 right-6 flex space-x-2">
+          {isEditing ? (
+            <>
+              <button
+                onClick={handleSaveChanges}
+                className="p-2 rounded-full bg-green-500 text-white hover:bg-green-600 transition-colors shadow-md"
+                title="Save Changes"
+              >
+                <Save className="w-5 h-5" />
+              </button>
+              <button
+                onClick={handleEditToggle} // Cancel button
+                className="p-2 rounded-full bg-gray-300 text-gray-800 hover:bg-gray-400 transition-colors shadow-md"
+                title="Cancel"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleEditToggle}
+              className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors shadow-md"
+              title="Edit Profile"
+            >
+              <Edit className="w-5 h-5" />
+            </button>
           )}
+          <button
+            onClick={handleLogout}
+            className="p-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors shadow-md"
+            title="Logout"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
 
-          {/* Profile Header */}
-          <div className="text-center mb-8">
-            <div className="relative inline-block mb-6">
-              <div className="w-24 h-24 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-2xl">
-                <User className="w-12 h-12 text-white" />
-              </div>
-              <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
-            </div>
-            <h2 className="text-3xl font-bold text-white mb-2">{userData.name || 'User'}</h2>
-            <p className="text-gray-400">Manage your profile information</p>
+        <div className="text-center mb-8">
+          <div className="w-24 h-24 bg-gradient-to-r from-green-600 to-lime-600 rounded-full flex items-center justify-center mx-auto shadow-lg mb-4 text-white text-4xl font-bold">
+            {userInitials}
           </div>
+          <h2 className="text-4xl font-bold bg-gradient-to-r from-green-700 to-lime-700 bg-clip-text text-transparent mb-2">
+            {profileData.name}
+          </h2>
+          <p className="text-gray-600 text-lg">Pro Member</p>
+        </div>
 
-          {/* Profile Content */}
-          <div className="space-y-6">
-            {!isEditing ? (
-              // View Mode
-              <>
-                <ProfileField 
-                  icon={<User className="w-5 h-5" />}
-                  label="Full Name"
-                  value={userData.name || 'Not provided'}
-                />
-                
-                <ProfileField 
-                  icon={<Mail className="w-5 h-5" />}
-                  label="Email Address"
-                  value={userData.email || 'Not provided'}
-                  disabled
-                />
-                
-                <ProfileField 
-                  icon={<Briefcase className="w-5 h-5" />}
-                  label="Role/Position"
-                  value={userData.role || 'Not provided'}
-                />
-                
-                <ProfileField 
-                  icon={<Building className="w-5 h-5" />}
-                  label="Industry"
-                  value={userData.industry || 'Not provided'}
-                />
+        {successMessage && (
+          <div className="bg-green-100 text-green-700 p-3 rounded-xl text-sm mb-4">
+            {successMessage}
+          </div>
+        )}
 
-                <div className="pt-6">
-                  <button
-                    onClick={handleEdit}
-                    className="w-full bg-gradient-to-r from-cyan-600 via-purple-600 to-pink-600 text-white py-4 px-6 rounded-xl font-semibold hover:from-cyan-700 hover:via-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 hover:shadow-xl shadow-lg flex items-center justify-center gap-2"
-                  >
-                    <Edit3 className="w-5 h-5" />
-                    Edit Profile
-                  </button>
-                </div>
-              </>
-            ) : (
-              // Edit Mode
-              <>
-                <EditField 
-                  icon={<User className="w-5 h-5" />}
-                  label="Full Name"
-                  name="name"
-                  value={editForm.name}
-                  onChange={handleInputChange}
-                  placeholder="Enter your full name"
-                />
-                
-                <EditField 
-                  icon={<Mail className="w-5 h-5" />}
-                  label="Email Address"
-                  name="email"
-                  value={editForm.email}
-                  disabled
-                  placeholder="Email cannot be changed"
-                />
-                
-                <EditField 
-                  icon={<Briefcase className="w-5 h-5" />}
-                  label="Role/Position"
-                  name="role"
-                  value={editForm.role}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Data Scientist, Student, Manager"
-                />
-                
-                <EditField 
-                  icon={<Building className="w-5 h-5" />}
-                  label="Industry"
-                  name="industry"
-                  value={editForm.industry}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Technology, Healthcare, Education"
-                />
+        <div className="space-y-6">
+          <ProfileDetail
+            icon={<Mail className="w-5 h-5 text-green-600" />}
+            label="Email"
+            value={profileData.email}
+            isEditing={false} // Email is usually not editable
+          />
+          <ProfileDetail
+            icon={<Briefcase className="w-5 h-5 text-green-600" />}
+            label="Role/Position"
+            value={isEditing ? editFormData.role : profileData.role}
+            isEditing={isEditing}
+            onChange={handleChange}
+            name="role"
+          />
+          <ProfileDetail
+            icon={<Building className="w-5 h-5 text-green-600" />}
+            label="Industry"
+            value={isEditing ? editFormData.industry : profileData.industry}
+            isEditing={isEditing}
+            onChange={handleChange}
+            name="industry"
+          />
 
-                <div className="pt-6 flex gap-4">
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-4 px-6 rounded-xl font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 transform hover:scale-105 hover:shadow-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {saving ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    ) : (
-                      <Save className="w-5 h-5" />
-                    )}
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                  
-                  <button
-                    onClick={handleCancel}
-                    disabled={saving}
-                    className="flex-1 bg-gradient-to-r from-red-600 to-pink-600 text-white py-4 px-6 rounded-xl font-semibold hover:from-red-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 hover:shadow-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <X className="w-5 h-5" />
-                    Cancel
-                  </button>
-                </div>
-              </>
-            )}
+          <div className="pt-4 border-t border-gray-200">
+            <h3 className="text-xl font-semibold bg-gradient-to-r from-green-700 to-lime-700 bg-clip-text text-transparent mb-4">
+              Social Media Profiles
+            </h3>
+            <div className="space-y-4">
+              {/* Using LinkIcon for Reddit as Reddit icon is not directly available from Lucide React */}
+              <ProfileLink
+                icon={<LinkIcon className="w-5 h-5 text-orange-600" />}
+                label="Reddit"
+                url={isEditing ? editFormData.platforms.reddit : profileData.platforms.reddit}
+                isEditing={isEditing}
+                onChange={handleChange}
+                name="platforms.reddit"
+              />
+              <ProfileLink
+                icon={<Youtube className="w-5 h-5 text-red-600" />}
+                label="YouTube"
+                url={isEditing ? editFormData.platforms.youtube : profileData.platforms.youtube}
+                isEditing={isEditing}
+                onChange={handleChange}
+                name="platforms.youtube"
+              />
+              <ProfileLink
+                icon={<X className="w-5 h-5 text-gray-900" />}
+                label="X (Twitter)"
+                url={isEditing ? editFormData.platforms.x : profileData.platforms.x}
+                isEditing={isEditing}
+                onChange={handleChange}
+                name="platforms.x"
+              />
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+// Helper component for displaying a single profile detail
+const ProfileDetail = ({ icon, label, value, isEditing, onChange, name }) => (
+  <div className="flex items-center gap-4 p-3 bg-green-50/50 rounded-lg shadow-sm">
+    {icon}
+    <div>
+      <div className="text-sm font-medium text-gray-500">{label}</div>
+      {isEditing ? (
+        <input
+          type={name === 'email' ? 'email' : 'text'} // Use email type for email field
+          name={name}
+          value={value}
+          onChange={onChange}
+          className="text-lg font-semibold text-gray-800 bg-transparent border-b border-gray-400 focus:outline-none focus:border-green-600"
+        />
+      ) : (
+        <div className="text-lg font-semibold text-gray-800">{value}</div>
+      )}
+    </div>
+  </div>
+);
+
+// Helper component for displaying a social media link
+const ProfileLink = ({ icon, label, url, isEditing, onChange, name }) => {
+  const isAvailable = url && url !== 'N/A';
+  return (
+    <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg shadow-sm">
+      {icon}
+      <div>
+        <div className="text-sm font-medium text-gray-500">{label}</div>
+        {isEditing ? (
+          <input
+            type="url" // Use url type for URL fields
+            name={name}
+            value={url}
+            onChange={onChange}
+            placeholder={`https://${label.toLowerCase()}.com/username`}
+            className="text-lg font-semibold text-gray-800 bg-transparent border-b border-gray-400 focus:outline-none focus:border-green-600 w-full"
+          />
+        ) : isAvailable ? (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-lg font-semibold text-blue-600 hover:underline flex items-center gap-1"
+          >
+            {url} <LinkIcon className="w-4 h-4" />
+          </a>
+        ) : (
+          <div className="text-lg font-semibold text-gray-500">Not provided</div>
+        )}
+      </div>
+    </div>
+  );
 };
-
-// Profile Field Component (View Mode)
-const ProfileField = ({ icon, label, value, disabled }) => (
-  <div className="group">
-    <div className="flex items-center gap-3 mb-2">
-      <div className="text-cyan-400 group-hover:text-purple-400 transition-colors duration-200">
-        {icon}
-      </div>
-      <label className="text-sm font-semibold text-gray-300 group-hover:text-white transition-colors duration-200">
-        {label}
-      </label>
-    </div>
-    <div className={`w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white ${
-      disabled ? 'opacity-60' : ''
-    }`}>
-      {value}
-    </div>
-  </div>
-);
-
-// Edit Field Component (Edit Mode)
-const EditField = ({ icon, label, name, value, onChange, placeholder, disabled }) => (
-  <div className="group">
-    <div className="flex items-center gap-3 mb-2">
-      <div className="text-cyan-400 group-focus-within:text-purple-400 transition-colors duration-200">
-        {icon}
-      </div>
-      <label className="text-sm font-semibold text-gray-300 group-focus-within:text-white transition-colors duration-200">
-        {label}
-      </label>
-    </div>
-    <input
-      name={name}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      disabled={disabled}
-      className={`w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all duration-200 hover:bg-slate-700/70 hover:border-slate-500/50 ${
-        disabled ? 'opacity-60 cursor-not-allowed' : ''
-      }`}
-    />
-  </div>
-);
-
-export default UserProfile;
