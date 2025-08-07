@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime
 import re
 import time
-
+import os
 def scrape_youtube_channel(channel_url):
     """Scrape videos from YouTube channel"""
     headers = {
@@ -60,15 +60,37 @@ def scrape_youtube_channel(channel_url):
         print(f"Error: {e}")
         return []
 
-def save_to_csv(videos):
-    """Save videos to CSV"""
-    if videos:
-        df = pd.DataFrame(videos)
-        filename = f"youtube_videos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        df.to_csv(filename, index=False)
-        print(f"Saved {len(videos)} videos to {filename}")
-        return df
-    return None
+def save_to_csv(videos, output_dir=None):
+    """
+    Saves a list of video data to a CSV file.
+
+    Args:
+        videos (list): A list of dictionaries, where each dictionary is a video's data.
+        output_dir (str, optional): The directory to save the file in. 
+                                    If None, saves to the current directory.
+
+    Returns:
+        str: The full path to the saved CSV file.
+    """
+    df = pd.DataFrame(videos)
+
+    # Generate a unique filename using the current timestamp
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    file_name = f"youtube_videos_{timestamp}.csv"
+
+    # If an output directory is provided, join it with the filename
+    if output_dir:
+        # Ensure the directory exists, create it if it doesn't
+        os.makedirs(output_dir, exist_ok=True)
+        file_path = os.path.join(output_dir, file_name)
+    else:
+        # Otherwise, use the filename as the path (saves in the current directory)
+        file_path = file_name
+
+    # Save the DataFrame to CSV with utf-8 encoding to handle special characters/emojis
+    df.to_csv(file_path, index=False, encoding='utf-8-sig')
+
+    return file_path
 
 # Main execution
 if __name__ == "__main__":

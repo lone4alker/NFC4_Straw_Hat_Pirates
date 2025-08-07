@@ -73,7 +73,7 @@ const SignUp = () => {
 
       console.log('User successfully saved!');
       alert('Verification email sent!');
-      window.location.replace('/login.html');
+      window.location.replace('./login'); // Redirect to login page after successful signup
     } catch (err) {
       console.error(err);
       displayErrorMessage(err.message);
