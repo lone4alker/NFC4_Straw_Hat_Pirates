@@ -112,21 +112,6 @@ const LandingPage = () => {
                 </button>
               </div>
 
-              {/* Stats */}
-              <div className="flex flex-wrap gap-12 pt-8">
-                <div className="text-center">
-                  <div className="text-4xl font-bold bg-gradient-to-r from-green-700 to-green-600 bg-clip-text text-transparent">500K+</div>
-                  <div className="text-stone-500 font-medium">Creative Minds</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-4xl font-bold bg-gradient-to-r from-green-800 to-green-700 bg-clip-text text-transparent">10M+</div>
-                  <div className="text-stone-500 font-medium">Refined Content</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-4xl font-bold bg-gradient-to-r from-green-600 to-green-500 bg-clip-text text-transparent">99%</div>
-                  <div className="text-stone-500 font-medium">Satisfaction</div>
-                </div>
-              </div>
             </div>
 
             {/* Right - Features Grid */}

@@ -99,14 +99,16 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, activeView, setAc
 
   return (
     <div className={`${sidebarOpen ? 'w-72' : 'w-0'} transition-all duration-300 bg-white border-r border-gray-200 overflow-hidden`}>
-      <div className="p-6 h-full flex flex-col overflow-y-auto">
-        {/* Logo */}
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
-            <Sparkles className="w-6 h-6 text-white" />
-          </div>
-          <span className="text-xl font-bold text-gray-900">CloutCraft</span>
-        </div>
+    
+        <div className="p-6 h-full flex flex-col overflow-y-auto">
+  {/* Logo */}
+  <div className="flex items-center gap-3 mb-10">
+    <div className="w-[53px] h-[53px] bg-emerald-500 rounded-lg flex items-center justify-center">
+      <Sparkles className="w-[45px] h-[45px] text-white" />
+    </div>
+    <span className="text-[29px] font-bold text-gray-900">CloutCraft</span>
+  </div>
+
 
         {/* New Chat Button */}
         <button

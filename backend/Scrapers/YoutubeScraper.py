@@ -66,7 +66,7 @@ def save_to_csv(videos, output_dir=None):
 
     Args:
         videos (list): A list of dictionaries, where each dictionary is a video's data.
-        output_dir (str, optional): The directory to save the file in. 
+        output_dir (str, optional): The directory to save the file in.
                                     If None, saves to the current directory.
 
     Returns:
@@ -75,19 +75,17 @@ def save_to_csv(videos, output_dir=None):
     df = pd.DataFrame(videos)
 
     # Generate a unique filename using the current timestamp
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    # --- THIS IS THE CORRECTED LINE ---
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
     file_name = f"youtube_videos_{timestamp}.csv"
 
-    # If an output directory is provided, join it with the filename
     if output_dir:
-        # Ensure the directory exists, create it if it doesn't
         os.makedirs(output_dir, exist_ok=True)
         file_path = os.path.join(output_dir, file_name)
     else:
-        # Otherwise, use the filename as the path (saves in the current directory)
         file_path = file_name
 
-    # Save the DataFrame to CSV with utf-8 encoding to handle special characters/emojis
     df.to_csv(file_path, index=False, encoding='utf-8-sig')
 
     return file_path
