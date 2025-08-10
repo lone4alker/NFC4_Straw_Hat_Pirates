@@ -1,6 +1,5 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File,  Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, Query, HTTPException
 from fastapi.responses import StreamingResponse, FileResponse
 from Scrapers import scrape_reddit_user_to_df
 from Scrapers.YoutubeScraper import scrape_youtube_channel, save_to_csv
@@ -13,7 +12,6 @@ import io
 import os
 import re
 import pytesseract
-from fastapi.responses import StreamingResponse
 import pandas as pd # Import pandas for the new logic
 
 
