@@ -1,7 +1,7 @@
 import requests
 
 def get_user_from_realtime_db(email: str):
-    base_url = "https://vedant-d772a-default-rtdb.firebaseio.com/users.json"
+    base_url = f"os.getenv('FIREBASE_DB_URL')/users.json"
     
     response = requests.get(base_url)
     

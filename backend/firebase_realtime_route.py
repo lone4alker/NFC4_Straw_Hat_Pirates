@@ -1,8 +1,10 @@
 # firebase_realtime_routes.py
 
 import requests
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
 app = FastAPI()
 
@@ -16,7 +18,7 @@ app.add_middleware(
 )
 
 # Your Realtime Database URL
-FIREBASE_DB_URL = "https://vedant-d772a-default-rtdb.firebaseio.com"
+FIREBASE_DB_URL = os.getenv("FIREBASE_DB_URL")
 
 @app.get("/account/{email}")
 async def get_account_by_email(email: str):
